@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 type Weather struct {
@@ -70,13 +72,30 @@ func main() {
 		hours := weather.Forecast.Forecastday[0].Hour
 		for _, hour := range hours {
 			date := time.Unix(hour.TimeEpoch, 0)
-			fmt.Printf(
+
+			if date.Before(time.Now()) {
+				continue
+			}
+
+			if condition := hour.Condition.Text; condition == "Clear" {
+				fmt.Println("Clear skies ahead!")
+			} else if condition == "Rain" {
+				fmt.Println("Don't forget your umbrella!")
+
+			}
+			message := fmt.Sprintf(
 				"%s - %.0fC, %.0f%% chance of rain, %s\n",
 				date.Format("15:04"),
 				hour.TempC,
 				hour.ChanceOfRain,
 				hour.Condition.Text,
 			)
+
+			if hour.ChanceOfRain < 40 {
+				fmt.Println(message)
+			} else {
+				color.Red(message)
+			}
 		}
 	} else {
 		fmt.Println("No forecast data available.")
