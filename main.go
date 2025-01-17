@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type Weather struct {
@@ -17,11 +19,10 @@ type Weather struct {
 			Text string `json:"text"`
 		} `json:"condition"`
 	} `json:"current"`
-
 	Forecast struct {
 		Forecastday []struct {
 			Hour []struct {
-				TimeEpoch int     `json:"time_epoch"`
+				TimeEpoch int64   `json:"time_epoch"`
 				TempC     float64 `json:"temp_c"`
 				Condition struct {
 					Text string `json:"text"`
@@ -33,13 +34,13 @@ type Weather struct {
 }
 
 func main() {
-	res, err := http.Get("https://api.weatherapi.com/v1/current.json?key=d28a46779f2d40d581375333251701&q=Kampala&aqi=no")
+	res, err := http.Get("https://api.weatherapi.com/v1/forecast.json?key=d28a46779f2d40d581375333251701&q=Kampala&days=1&aqi=no&alerts=no")
 	if err != nil {
 		panic(err)
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK {
 		panic("Failed to fetch weather data")
 	}
 
@@ -48,5 +49,36 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(string(body))
+	var weather Weather
+	err = json.Unmarshal(body, &weather)
+	if err != nil {
+		panic(err)
+	}
+
+	location, current := weather.Location, weather.Current
+
+	fmt.Printf(
+		"%s, %s: %.0fC, %s\n",
+		location.Name,
+		location.Country,
+		current.TempC,
+		current.Condition.Text,
+	)
+
+	// Safely access hourly forecast data
+	if len(weather.Forecast.Forecastday) > 0 {
+		hours := weather.Forecast.Forecastday[0].Hour
+		for _, hour := range hours {
+			date := time.Unix(hour.TimeEpoch, 0)
+			fmt.Printf(
+				"%s - %.0fC, %.0f%% chance of rain, %s\n",
+				date.Format("15:04"),
+				hour.TempC,
+				hour.ChanceOfRain,
+				hour.Condition.Text,
+			)
+		}
+	} else {
+		fmt.Println("No forecast data available.")
+	}
 }
