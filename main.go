@@ -58,46 +58,64 @@ func main() {
 	}
 
 	location, current := weather.Location, weather.Current
+	now := time.Now()
 
+	// Display current weather
+	conditionEmoji := getConditionEmoji(current.Condition.Text)
 	fmt.Printf(
-		"%s, %s: %.0fC, %s\n",
+		"%s, %s: %.0f°C %s %s\n",
 		location.Name,
 		location.Country,
 		current.TempC,
 		current.Condition.Text,
+		conditionEmoji,
 	)
 
-	// Safely access hourly forecast data
+	// Check for rain later in the day
 	if len(weather.Forecast.Forecastday) > 0 {
 		hours := weather.Forecast.Forecastday[0].Hour
-		for _, hour := range hours {
-			date := time.Unix(hour.TimeEpoch, 0)
+		rainExpected := false
+		daySummary := "Sunny Day 🌞"
 
-			if date.Before(time.Now()) {
+		for _, hour := range hours {
+			hourTime := time.Unix(hour.TimeEpoch, 0)
+
+			// Skip past hours
+			if hourTime.Before(now) {
 				continue
 			}
 
-			if condition := hour.Condition.Text; condition == "Clear" {
-				fmt.Println("Clear skies ahead!")
-			} else if condition == "Rain" {
-				fmt.Println("Don't forget your umbrella!")
-
+			// Check if rain is expected later
+			if hour.ChanceOfRain > 40 {
+				rainExpected = true
+				daySummary = "Rainy Day 🌧"
 			}
-			message := fmt.Sprintf(
-				"%s - %.0fC, %.0f%% chance of rain, %s\n",
-				date.Format("15:04"),
-				hour.TempC,
-				hour.ChanceOfRain,
-				hour.Condition.Text,
-			)
+		}
 
-			if hour.ChanceOfRain < 40 {
-				fmt.Println(message)
-			} else {
-				color.Red(message)
-			}
+		if rainExpected {
+			color.Blue("⛈ Rain expected later. Forecast for the day: %s", daySummary)
+		} else {
+			color.Green("🌞 No rain expected. Forecast for the day: %s", daySummary)
 		}
 	} else {
 		fmt.Println("No forecast data available.")
+	}
+}
+
+// getConditionEmoji maps weather conditions to emojis
+func getConditionEmoji(condition string) string {
+	switch condition {
+	case "Sunny", "Clear":
+		return "☀️"
+	case "Rain", "Light rain", "Showers":
+		return "🌧"
+	case "Cloudy", "Overcast":
+		return "☁️"
+	case "Snow":
+		return "❄️"
+	case "Thunderstorm":
+		return "⛈"
+	default:
+		return "🌡"
 	}
 }
